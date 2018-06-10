@@ -21,6 +21,7 @@ namespace NgrokLauncher
         public class Config
         {
             public string authtoken { get; set; }
+            public string server_addr { get; set; }
             public string region { get; set; }
             public bool console_ui { get; set; }
             public string log_level { get; set; }
@@ -28,21 +29,28 @@ namespace NgrokLauncher
             public string log { get; set; }
             public string web_addr { get; set; }
             public bool run_website { get; set; }
-            public bool run_ssh { get; set; }
+            public bool run_tcp { get; set; }
             public Tunnel tunnels { get; set; }
         }
 
         public class Tunnel
         {
             public Protocol website { get; set; }
-            public Protocol ssh { get; set; }
+            public Protocol tcp { get; set; }
         }
 
         public class Protocol
         {
-            public int addr { get; set; }
-            public string proto { get; set; }
+            public string subdomain { get; set; }
+            public int remote_port { get; set; }
+            public Proto proto { get; set; }
             public string auth { get; set; }
+        }
+
+        public class Proto
+        {
+            public int http { get; set; }
+            public int tcp { get; set; }
         }
 
         public class Response
@@ -64,6 +72,7 @@ namespace NgrokLauncher
                 var config = new Config
                 {
                     authtoken = string.Empty,
+                    server_addr = string.Empty,
                     console_ui = true,
                     region = "us",
                     log_level = "info",
@@ -71,18 +80,25 @@ namespace NgrokLauncher
                     log = "ngrok.log",
                     web_addr = LocalHost,
                     run_website = true,
-                    run_ssh = false,
+                    run_tcp = true,
                     tunnels = new Tunnel
                     {
                         website = new Protocol
                         {
-                            addr = 80,
-                            proto = "http"
+                            subdomain = "www",
+                            proto = new Proto
+                            {
+                                http = 80
+                            } 
+
                         },
-                        ssh = new Protocol
+                        tcp = new Protocol
                         {
-                            addr = 22,
-                            proto = "tcp"
+                            remote_port = 2222,
+                            proto = new Proto
+                            {
+                                tcp = 22
+                            }
                         }
                     }
                 };
@@ -124,14 +140,17 @@ namespace NgrokLauncher
             return config;
         }
 
-        public void Save(string token, int http, int tcp, bool website, bool ssh)
+        public void Save(string token, string server_addr, int http, string subdomain, int tcp, int lanport, bool run_website, bool run_tcp)
         {
             var config = Load();
             config.authtoken = token;
-            config.tunnels.website.addr = http;
-            config.tunnels.ssh.addr = tcp;
-            config.run_website = website;
-            config.run_ssh = ssh;
+            config.server_addr = server_addr;
+            config.tunnels.website.proto.http= http;
+            config.tunnels.website.subdomain = subdomain;
+            config.tunnels.tcp.remote_port = tcp;
+            config.tunnels.tcp.proto.tcp = lanport;
+            config.run_website = run_website;
+            config.run_tcp = run_tcp;
 
             var serializer = new SerializerBuilder().Build();
             var yaml = serializer.Serialize(config);
@@ -145,7 +164,7 @@ namespace NgrokLauncher
             exec.FileName = NgrokExecutable;
             exec.CreateNoWindow = true;
             exec.UseShellExecute = false;
-            exec.Arguments = $"start -config \"{NgrokYaml}\" ";
+            exec.Arguments = $"-config \"{NgrokYaml}\" start ";
 
             switch (code)
             {
@@ -154,11 +173,11 @@ namespace NgrokLauncher
                     break;
 
                 case 2:
-                    exec.Arguments += "ssh";
+                    exec.Arguments += "tcp";
                     break;
 
                 default:
-                    exec.Arguments += "website ssh";
+                    exec.Arguments += "website tcp";
                     break;
             }
 

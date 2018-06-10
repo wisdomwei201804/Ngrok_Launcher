@@ -22,8 +22,8 @@ namespace NgrokLauncher
                 var dialog = MessageBox.Show("This application requires ngrok.exe\nDownload now?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                 if (dialog == DialogResult.Yes)
                     Process.Start("https://ngrok.com/download").Dispose();
-                this.Close();
-                this.Dispose();
+                //this.Close();
+                //this.Dispose();
                 Application.Exit();
             }
 
@@ -34,22 +34,59 @@ namespace NgrokLauncher
             groupBox_publicUrl.Enabled = false;
 
             var config = ngrok.Load();
-            textBox1.Text = config.authtoken;
-            textBox_http.Text = config.tunnels.website.addr.ToString();
-            textBox_tcp.Text = config.tunnels.ssh.addr.ToString();
+            textBox_authToken.Text = config.authtoken;
+            textBox_serverAddr.Text = config.server_addr;
+            textBox_http.Text = config.tunnels.website.proto.http.ToString();
+            textBox_subDomain.Text = config.tunnels.website.subdomain.ToString();
+            textBox_tcp.Text = config.tunnels.tcp.remote_port.ToString();
+            textBox_lanPort.Text = config.tunnels.tcp.proto.tcp.ToString();
             checkBox_http.Checked = config.run_website;
-            checkBox_tcp.Checked = config.run_ssh;
+            checkBox_tcp.Checked = config.run_tcp;
+            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            if (!AppSettingsKeyExists("autoMinimized", app_config))
+            {
+                app_config.AppSettings.Settings.Add("autoMinimized", "Off");
+            }
+            else
+            {
+                if (app_config.AppSettings.Settings["autoMinimized"].Value == "On")
+                {
+                    checkBox_autoMinimized.Checked = true;
+                    this.WindowState = FormWindowState.Minimized; //窗体最小化
+                    this.Hide(); //窗体隐藏
+                }
+            }
+            if (!AppSettingsKeyExists("autoBoot", app_config))
+            {
+                app_config.AppSettings.Settings.Add("autoBoot", "Off");
+            }
+            else
+            {
+                if (app_config.AppSettings.Settings["autoBoot"].Value == "On")
+                {
+                    checkBox_autoBoot.Checked = true;
+                    LockAll(true);
+                    int code = 0;
+                    if (checkBox_http.Checked && !checkBox_tcp.Checked) code = 1;
+                    else if (!checkBox_http.Checked && checkBox_tcp.Checked) code = 2;
+                    else code = 0;
+                    //timer1.Enabled = true;
+                    await ngrok.Start(code);
+                    LockAll(false);
+                }
+            }
         }
 
         private void LockAll(bool value)
         {
             button_serviceStart.Enabled = !value;
             button_serviceStop.Enabled = value;
-            groupBox1.Enabled = !value;
+            groupBox_authToken.Enabled = !value;
+            groupBox_serverAddr.Enabled = !value;
             groupBox_protocol.Enabled = !value;
             groupBox_publicUrl.Enabled = value;
 
-            // inside grupbox4
+            // inside Public Url
             textBox_publicHttp.Text = string.Empty;
             textBox_publicHttps.Text = string.Empty;
             textBox_publicTcp.Text = string.Empty;
@@ -63,20 +100,27 @@ namespace NgrokLauncher
 
         private void SaveConfigs()
         {
-            var token = textBox1.Text;
+            var token = textBox_authToken.Text.ToString();
+            var server_addr = textBox_serverAddr.Text.ToString();
 
             var http = 80;
             int.TryParse(textBox_http.Text, out http);
             textBox_http.Text = http.ToString();
 
-            var tcp = 22;
+            var subdomain = textBox_subDomain.Text.ToString();
+
+            var tcp = 2222;
             int.TryParse(textBox_tcp.Text, out tcp);
             textBox_tcp.Text = tcp.ToString();
 
-            ngrok.Save(token, http, tcp, checkBox_http.Checked, checkBox_tcp.Checked);
+            var lanport = 22;
+            int.TryParse(textBox_lanPort.Text, out lanport);
+            textBox_lanPort.Text = lanport.ToString();
+
+            ngrok.Save(token, server_addr, http, subdomain, tcp, lanport, checkBox_http.Checked, checkBox_tcp.Checked);
         }
 
-        private async void button1_Click(object sender, EventArgs e)
+        private async void button_serviceStart_Click(object sender, EventArgs e)
         {
             LockAll(true);
             SaveConfigs();
@@ -86,13 +130,13 @@ namespace NgrokLauncher
             else if (!checkBox_http.Checked && checkBox_tcp.Checked) code = 2;
             else code = 0;
 
-            timer1.Enabled = true;
+            //timer1.Enabled = true;
             await ngrok.Start(code);
 
             LockAll(false);
         }
 
-        private async void button2_Click(object sender, EventArgs e)
+        private async void button_serviceStop_Click(object sender, EventArgs e)
         {
             button_serviceStop.Enabled = false;
 
@@ -174,9 +218,9 @@ namespace NgrokLauncher
             }
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
+        private void textBox_authToken_TextChanged(object sender, EventArgs e)
         {
-            button_serviceStart.Enabled = !string.IsNullOrWhiteSpace(textBox1.Text);
+            button_serviceStart.Enabled = !string.IsNullOrWhiteSpace(textBox_authToken.Text);
         }
 
         private void textDigit_KeyPress(object sender, KeyPressEventArgs e)
@@ -227,29 +271,30 @@ namespace NgrokLauncher
             this.Hide(); //窗体隐藏
         }
 
-        private void ToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void ToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            await ngrok.Stop();
             this.Close();
             this.Dispose();
         }
 
         private void checkBox_autoBoot_CheckedChanged(object sender, EventArgs e)
         {
-            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (!AppSettingsKeyExists("autoBoot", config))
+            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            if (!AppSettingsKeyExists("autoBoot", app_config))
             {
-                config.AppSettings.Settings.Add("autoBoot", "Off");
+                app_config.AppSettings.Settings.Add("autoBoot", "Off");
             }
             if (!checkBox_autoBoot.Checked)
             {
-                config.AppSettings.Settings["autoBoot"].Value = "Off";
+                app_config.AppSettings.Settings["autoBoot"].Value = "Off";
                 Microsoft.Win32.RegistryKey Rkey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
                 Rkey.DeleteValue("Ngrok Launcher");
                 Rkey.Close();
             }
             else
             {
-                config.AppSettings.Settings["autoBoot"].Value = "On";
+                app_config.AppSettings.Settings["autoBoot"].Value = "On";
                 //获取执行该方法的程序集，并获取该程序集的文件路径（由该文件路径可以得到程序集所在的目录）
                 string thisExecutablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;//this.GetType().Assembly.Location;
                                                                                                        //SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run注册表中这个路径是开机自启动的路径
@@ -257,27 +302,27 @@ namespace NgrokLauncher
                 Rkey.SetValue("Ngrok Launcher", thisExecutablePath);
                 Rkey.Close();
             }
-            config.Save();
+            app_config.Save();
             ConfigurationManager.RefreshSection("appSettings");
         }
 
         private void checkBox_autoMinimized_CheckedChanged(object sender, EventArgs e)
         {
-            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (!AppSettingsKeyExists("autoMinimized",config))
+            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            if (!AppSettingsKeyExists("autoMinimized",app_config))
             {
-                config.AppSettings.Settings.Add("autoMinimized", "Off");
+                app_config.AppSettings.Settings.Add("autoMinimized", "Off");
             }
                 
             if (!checkBox_autoMinimized.Checked)
             {
-                config.AppSettings.Settings["autoMinimized"].Value = "Off";
+                app_config.AppSettings.Settings["autoMinimized"].Value = "Off";
             }
             else
             {
-                config.AppSettings.Settings["autoMinimized"].Value = "On";
+                app_config.AppSettings.Settings["autoMinimized"].Value = "On";
             }
-            config.Save();
+            app_config.Save();
             ConfigurationManager.RefreshSection("appSettings");
         }
         
@@ -293,6 +338,11 @@ namespace NgrokLauncher
                 }
             }
             return false;
+        }
+
+        private void textBox_serverAddr_TextChanged(object sender, EventArgs e)
+        {
+            button_serviceStart.Enabled = !string.IsNullOrWhiteSpace(textBox_serverAddr.Text);
         }
     }
 }
