@@ -12,7 +12,7 @@ namespace NgrokLauncher
     internal class Ngrok
     {
         private static readonly string NgrokExecutable = "ngrok.exe";
-        private static readonly string NgrokYaml = "ngrok.yaml";
+        private static readonly string NgrokYaml = "ngrok.cfg";
         public static readonly string CurrentDirectory = Path.GetDirectoryName(Application.ExecutablePath);
         public static readonly string FileNgrokExecutable = Path.Combine(CurrentDirectory, NgrokExecutable);
         public static readonly string FileConfig = Path.Combine(CurrentDirectory, NgrokYaml);

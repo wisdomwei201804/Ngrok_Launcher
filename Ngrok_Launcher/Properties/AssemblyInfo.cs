@@ -7,9 +7,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("Ngrok Launcher")]
 [assembly: AssemblyDescription("Ngrok – Secure tunnels to localhost")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Harimurti.net")]
+[assembly: AssemblyCompany("Wisdom Studio")]
 [assembly: AssemblyProduct("Ngrok Launcher")]
-[assembly: AssemblyCopyright("Copyright © 2017 Harimurti.net")]
+[assembly: AssemblyCopyright("Copyright © 2018 Wisdom Studio")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -31,5 +31,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyFileVersion("1.0")]
+[assembly: AssemblyVersion("2.0.0")]
+[assembly: AssemblyFileVersion("2.0.0")]
