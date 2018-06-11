@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Windows.Forms;
-using System.Configuration;
 
 namespace NgrokLauncher
 {
@@ -42,27 +41,17 @@ namespace NgrokLauncher
             textBox_lanPort.Text = config.tunnels.tcp.proto.tcp.ToString();
             checkBox_http.Checked = config.run_website;
             checkBox_tcp.Checked = config.run_tcp;
-            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (!AppSettingsKeyExists("autoMinimized", app_config))
+            checkBox_autoBoot.Checked = config.auto_boot;
+            checkBox_autoMinimized.Checked = config.auto_minimized;
+            if( config.authtoken != "" || config.server_addr != "" )
             {
-                app_config.AppSettings.Settings.Add("autoMinimized", "Off");
-            }
-            else
-            {
-                if (app_config.AppSettings.Settings["autoMinimized"].Value == "On")
+                if (config.auto_minimized)
                 {
                     checkBox_autoMinimized.Checked = true;
                     this.WindowState = FormWindowState.Minimized; //窗体最小化
                     this.Hide(); //窗体隐藏
                 }
-            }
-            if (!AppSettingsKeyExists("autoBoot", app_config))
-            {
-                app_config.AppSettings.Settings.Add("autoBoot", "Off");
-            }
-            else
-            {
-                if (app_config.AppSettings.Settings["autoBoot"].Value == "On")
+                if (config.auto_boot)
                 {
                     checkBox_autoBoot.Checked = true;
                     LockAll(true);
@@ -75,6 +64,7 @@ namespace NgrokLauncher
                     LockAll(false);
                 }
             }
+           
         }
 
         private void LockAll(bool value)
@@ -85,6 +75,8 @@ namespace NgrokLauncher
             groupBox_serverAddr.Enabled = !value;
             groupBox_protocol.Enabled = !value;
             groupBox_publicUrl.Enabled = value;
+            checkBox_autoBoot.Enabled = !value;
+            checkBox_autoMinimized.Enabled = !value;
 
             // inside Public Url
             textBox_publicHttp.Text = string.Empty;
@@ -117,7 +109,7 @@ namespace NgrokLauncher
             int.TryParse(textBox_lanPort.Text, out lanport);
             textBox_lanPort.Text = lanport.ToString();
 
-            ngrok.Save(token, server_addr, http, subdomain, tcp, lanport, checkBox_http.Checked, checkBox_tcp.Checked);
+            ngrok.Save(token, server_addr, http, subdomain, tcp, lanport, checkBox_http.Checked, checkBox_tcp.Checked, checkBox_autoBoot.Checked, checkBox_autoMinimized.Checked);
         }
 
         private async void button_serviceStart_Click(object sender, EventArgs e)
@@ -237,6 +229,7 @@ namespace NgrokLauncher
                 if (sender == checkBox_http) checkBox_tcp.Checked = true;
                 else checkBox_http.Checked = true;
             }
+            SaveConfigs();
         }
 
         private void MainForm_Resize(object sender, EventArgs e)
@@ -280,21 +273,15 @@ namespace NgrokLauncher
 
         private void checkBox_autoBoot_CheckedChanged(object sender, EventArgs e)
         {
-            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (!AppSettingsKeyExists("autoBoot", app_config))
-            {
-                app_config.AppSettings.Settings.Add("autoBoot", "Off");
-            }
+            SaveConfigs();
             if (!checkBox_autoBoot.Checked)
             {
-                app_config.AppSettings.Settings["autoBoot"].Value = "Off";
                 Microsoft.Win32.RegistryKey Rkey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
                 Rkey.DeleteValue("Ngrok Launcher");
                 Rkey.Close();
             }
             else
             {
-                app_config.AppSettings.Settings["autoBoot"].Value = "On";
                 //获取执行该方法的程序集，并获取该程序集的文件路径（由该文件路径可以得到程序集所在的目录）
                 string thisExecutablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;//this.GetType().Assembly.Location;
                                                                                                        //SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run注册表中这个路径是开机自启动的路径
@@ -302,44 +289,13 @@ namespace NgrokLauncher
                 Rkey.SetValue("Ngrok Launcher", thisExecutablePath);
                 Rkey.Close();
             }
-            app_config.Save();
-            ConfigurationManager.RefreshSection("appSettings");
         }
 
         private void checkBox_autoMinimized_CheckedChanged(object sender, EventArgs e)
         {
-            Configuration app_config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (!AppSettingsKeyExists("autoMinimized",app_config))
-            {
-                app_config.AppSettings.Settings.Add("autoMinimized", "Off");
-            }
-                
-            if (!checkBox_autoMinimized.Checked)
-            {
-                app_config.AppSettings.Settings["autoMinimized"].Value = "Off";
-            }
-            else
-            {
-                app_config.AppSettings.Settings["autoMinimized"].Value = "On";
-            }
-            app_config.Save();
-            ConfigurationManager.RefreshSection("appSettings");
+            SaveConfigs();
         }
         
-        /// 判断appSettings中是否有此项  
-        /// </summary>  
-        private static bool AppSettingsKeyExists(string strKey, Configuration config)
-        {
-            foreach (string str in config.AppSettings.Settings.AllKeys)
-            {
-                if (str == strKey)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private void textBox_serverAddr_TextChanged(object sender, EventArgs e)
         {
             button_serviceStart.Enabled = !string.IsNullOrWhiteSpace(textBox_serverAddr.Text);

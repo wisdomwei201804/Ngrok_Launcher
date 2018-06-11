@@ -30,6 +30,8 @@ namespace NgrokLauncher
             public string web_addr { get; set; }
             public bool run_website { get; set; }
             public bool run_tcp { get; set; }
+            public bool auto_boot { get; set; }
+            public bool auto_minimized { get; set; }
             public Tunnel tunnels { get; set; }
         }
 
@@ -79,8 +81,10 @@ namespace NgrokLauncher
                     log_format = "logfmt",
                     log = "ngrok.log",
                     web_addr = LocalHost,
-                    run_website = true,
-                    run_tcp = true,
+                    run_website = false,
+                    run_tcp = false,
+                    auto_boot = false,
+                    auto_minimized = false,
                     tunnels = new Tunnel
                     {
                         website = new Protocol
@@ -132,15 +136,24 @@ namespace NgrokLauncher
 
         public Config Load()
         {
-            var yaml = File.ReadAllText(FileConfig);
-            var deserializer = new DeserializerBuilder().Build();
-            var config = deserializer.Deserialize<Config>(yaml);
+            try
+            {
+                var yaml = File.ReadAllText(FileConfig);
+                var deserializer = new DeserializerBuilder().Build();
+                var config = deserializer.Deserialize<Config>(yaml);
 
-            LocalHost = config.web_addr;
-            return config;
+                LocalHost = config.web_addr;
+                return config;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return null;
+            }
+
         }
 
-        public void Save(string token, string server_addr, int http, string subdomain, int tcp, int lanport, bool run_website, bool run_tcp)
+        public void Save(string token, string server_addr, int http, string subdomain, int tcp, int lanport, bool run_website, bool run_tcp, bool auto_boot, bool auto_minimized)
         {
             var config = Load();
             config.authtoken = token;
@@ -151,6 +164,8 @@ namespace NgrokLauncher
             config.tunnels.tcp.proto.tcp = lanport;
             config.run_website = run_website;
             config.run_tcp = run_tcp;
+            config.auto_boot = auto_boot;
+            config.auto_minimized = auto_minimized;
 
             var serializer = new SerializerBuilder().Build();
             var yaml = serializer.Serialize(config);
